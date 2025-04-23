@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Reuniclus - Winamp-Style Player</title>
+    <style>
+        /* MAIN PLAYER STYLES */
+        body {
+            background-color: #008080;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        #winamp-container {
+            width: 275px;
+            background: linear-gradient(to bottom, #008080, #005858);
+            border: 2px solid #000;
+            border-radius: 5px;
+            box-shadow: 3px 3px 5px rgba(0,0,0,0.5);
+            color: white;
+            user-select: none;
+        }
+        
+        #title-bar {
+            background: linear-gradient(to right, #000080, #1084D0);
+            padding: 3px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            cursor: move;
+        }
+        
+        #controls {
+            display: flex;
+            padding: 10px;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        button {
+            width: 30px;
+            height: 30px;
+            background-color: #C0C0C0;
+            border: 2px solid;
+            border-color: #fff #808080 #808080 #fff;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        button:active {
+            border-color: #808080 #fff #fff #808080;
+        }
+        
+        #playlist {
+            height: 100px;
+            overflow-y: auto;
+            background-color: #000;
+            margin: 10px;
+            padding: 5px;
+            border: 2px solid #C0C0C0;
+            font-size: 12px;
+        }
+        
+        /* VISUALIZER */
+        #visualizer {
+            height: 60px;
+            margin: 10px;
+            background: black;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #spectrum {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: flex-end;
+        }
+        
+        .frequency-bar {
+            flex: 1;
+            background: linear-gradient(to top, #00FF00, #FF0000);
+            margin: 0 1px;
+            transition: height 0.05s;
+        }
+        
+        /* PROGRESS BAR */
+        #progress-container {
+            margin: 10px;
+            height: 4px;
+            background: #333;
+            cursor: pointer;
+        }
+        
+        #progress-bar {
+            height: 100%;
+            background: #0066CC;
+            width: 0%;
+        }
+        
+        /* VOLUME & EQ */
+        #volume-container {
+            margin: 10px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        /* DRAG & DROP */
+        #drop-zone {
+            border: 2px dashed #ccc;
+            padding: 10px;
+            margin: 10px;
+            text-align: center;
+            cursor: pointer;
+        }
+        
+        #drop-zone.highlight {
+            border-color: #00FF00;
+            background-color: rgba(0, 255, 0, 0.1);
+        }
+        
+        /* TIME DISPLAY */
+        #time-display {
+            text-align: center;
+            font-size: 11px;
+            margin: 5px 0;
+        }
+        
+        /* MINI PLAYER */
+        #mini-player {
+            width: 200px;
+            background: #000080;
+            padding: 5px;
+            display: none;
+            align-items: center;
+            gap: 5px;
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            border: 2px solid #C0C0C0;
+            z-index: 1000;
+        }
+        
+        #mini-player button {
+            width: 25px;
+            height: 25px;
+            font-size: 12px;
+            margin: 0;
+        }
+        
+        #mini-title {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 12px;
+        }
+        
+        /* EQ SLIDERS */
+        #eq-container {
+            background: #000;
+            margin: 10px;
+            padding: 10px;
+            border: 2px solid #C0C0C0;
+            display: none;
+        }
+        
+        #eq-toggle {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 2px 5px;
+            margin: 0 10px;
+            font-size: 10px;
+            cursor: pointer;
+        }
+        
+        .eq-band {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 20px;
+        }
+        
+        .eq-slider {
+            -webkit-appearance: slider-vertical;
+            width: 20px;
+            height: 80px;
+            margin: 5px 0;
+        }
+        
+        .eq-label {
+            font-size: 9px;
+            color: #00FF00;
+        }
+        
+        #eq-bands {
+            display: flex;
+            justify-content: space-around;
+        }
+    </style>
+</head>
+<body>
+    <!-- MAIN PLAYER -->
+    <div id="winamp-container">
+        <div id="title-bar">
+            <span>Reuniclus</span>
+            <div>
+                <button id="minimize">_</button>
+                <button id="close">×</button>
+            </div>
+        </div>
+        
+        <!-- SPECTRUM ANALYZER -->
+        <div id="visualizer">
+            <div id="spectrum"></div>
+        </div>
+        
+        <!-- PROGRESS BAR -->
+        <div id="progress-container">
+            <div id="progress-bar"></div>
+        </div>
+        
+        <!-- TIME DISPLAY -->
+        <div id="time-display">00:00 / 00:00</div>
+        
+        <!-- CONTROLS -->
+        <div id="controls">
+            <button id="prev">◀◀</button>
+            <button id="play">▶</button>
+            <button id="pause">❚❚</button>
+            <button id="stop">■</button>
+            <button id="next">▶▶</button>
+        </div>
+        
+        <!-- VOLUME & EQ -->
+        <div id="volume-container">
+            <span>🔊</span>
+            <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.7">
+            <button id="eq-toggle">EQ</button>
+        </div>
+        
+        <!-- EQ SLIDERS -->
+        <div id="eq-container">
+            <div id="eq-bands"></div>
+        </div>
+        
+        <!-- DRAG & DROP -->
+        <div id="drop-zone">
+            Drag & drop MP3s here or click to browse
+            <input type="file" id="file-input" accept="audio/*" multiple style="display: none;">
+        </div>
+        
+        <!-- PLAYLIST -->
+        <div id="playlist"></div>
+    </div>
+    
+    <!-- MINI PLAYER -->
+    <div id="mini-player">
+        <div id="mini-title">No track loaded</div>
+        <button id="mini-play">▶</button>
+        <button id="mini-pause">❚❚</button>
+        <button id="unminimize">↗</button>
+    </div>
+
+    <script>
+        // ===== CORE PLAYER =====
+        const audio = new Audio();
+        let playlist = [];
+        let currentTrackIndex = -1;
+        let audioContext, analyser, dataArray;
+        let isPlaying = false;
+        let eqNodes = [];
+        
+        // UI ELEMENTS
+        const visualizer = document.getElementById('visualizer');
+        const spectrumEl = document.getElementById('spectrum');
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const playlistEl = document.getElementById('playlist');
+        const progressBar = document.getElementById('progress-bar');
+        const progressContainer = document.getElementById('progress-container');
+        const timeDisplay = document.getElementById('time-display');
+        const volumeSlider = document.getElementById('volume-slider');
+        const eqContainer = document.getElementById('eq-container');
+        const eqToggle = document.getElementById('eq-toggle');
+        const eqBands = document.getElementById('eq-bands');
+        
+        // MINI PLAYER ELEMENTS
+        const miniPlayer = document.getElementById('mini-player');
+        const mainPlayer = document.getElementById('winamp-container');
+        const minimizeBtn = document.getElementById('minimize');
+        const unminimizeBtn = document.getElementById('unminimize');
+        const miniTitle = document.getElementById('mini-title');
+        const miniPlayBtn = document.getElementById('mini-play');
+        const miniPauseBtn = document.getElementById('mini-pause');
+
+        // ===== INITIALIZE =====
+        // Create spectrum analyzer bars
+        for (let i = 0; i < 32; i++) {
+            const bar = document.createElement('div');
+            bar.className = 'frequency-bar';
+            spectrumEl.appendChild(bar);
+        }
+
+        // ===== DRAG & DROP =====
+        dropZone.addEventListener('click', () => fileInput.click());
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(event => {
+            dropZone.addEventListener(event, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.toggle('highlight', event === 'dragover');
+                
+                if (event === 'drop') {
+                    const files = Array.from(e.dataTransfer.files);
+                    if (files.length > 0) handleFiles({ target: { files } });
+                }
+            });
+        });
+        
+        fileInput.addEventListener('change', handleFiles);
+        
+        function handleFiles(e) {
+            const files = Array.from(e.target.files).filter(file => 
+                file.type.startsWith('audio/')
+            );
+            
+            if (files.length === 0) return;
+            
+            playlist = files.map(file => ({
+                name: file.name.replace(/\.[^/.]+$/, ""),
+                file: file
+            }));
+            
+            updatePlaylist();
+            playTrack(0); // Auto-play first track
+        }
+
+        // ===== PLAYBACK FUNCTIONS =====
+        function updatePlaylist() {
+            playlistEl.innerHTML = '';
+            playlist.forEach((track, index) => {
+                const div = document.createElement('div');
+                div.textContent = track.name;
+                div.style.padding = "2px";
+                div.style.cursor = "pointer";
+                div.addEventListener('click', () => playTrack(index));
+                if (index === currentTrackIndex) div.style.background = "#0066CC";
+                playlistEl.appendChild(div);
+            });
+        }
+        
+        function playTrack(index) {
+            if (index < 0 || index >= playlist.length) return;
+            
+            currentTrackIndex = index;
+            const track = playlist[index];
+            
+            // Clean up previous audio
+            if (audio.src) URL.revokeObjectURL(audio.src);
+            
+            audio.src = URL.createObjectURL(track.file);
+            audio.load();
+            audio.play()
+                .then(() => {
+                    isPlaying = true;
+                    updatePlaylist();
+                    updateMiniPlayerTitle();
+                    initAudioContext();
+                })
+                .catch(err => console.error("Play error:", err));
+        }
+
+        // ===== AUDIO CONTEXT & VISUALIZER =====
+        function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 64;
+                const source = audioContext.createMediaElementSource(audio);
+                source.connect(analyser);
+                
+                // Connect analyser directly (will be overridden if EQ is enabled)
+                analyser.connect(audioContext.destination);
+                
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                animateSpectrum();
+            }
+        }
+        
+        function animateSpectrum() {
+            if (!analyser) return;
+            
+            analyser.getByteFrequencyData(dataArray);
+            const bars = document.querySelectorAll('.frequency-bar');
+            
+            bars.forEach((bar, i) => {
+                const value = dataArray[i] / 255;
+                const height = value * 60;
+                bar.style.height = `${height}px`;
+                bar.style.background = `linear-gradient(to top, #00FF00, hsl(${value * 120}, 100%, 50%))`;
+            });
+            
+            requestAnimationFrame(animateSpectrum);
+        }
+
+        // ===== EQUALIZER =====
+        const eqFrequencies = [60, 170, 310, 600, 1000, 3000, 6000, 12000, 14000, 16000];
+        
+        function initEQ() {
+            // Clear existing EQ nodes
+            eqNodes.forEach(node => {
+                node.filter.disconnect();
+            });
+            eqNodes = [];
+            eqBands.innerHTML = '';
+            
+            // Create new EQ nodes
+            let lastNode = analyser;
+            
+            eqFrequencies.forEach((freq, i) => {
+                const band = document.createElement('div');
+                band.className = 'eq-band';
+                
+                const slider = document.createElement('input');
+                slider.type = 'range';
+                slider.className = 'eq-slider';
+                slider.min = -12;
+                slider.max = 12;
+                slider.value = 0;
+                slider.step = 1;
+                
+                const label = document.createElement('div');
+                label.className = 'eq-label';
+                label.textContent = freq >= 1000 ? `${freq/1000}k` : freq;
+                
+                band.appendChild(slider);
+                band.appendChild(label);
+                eqBands.appendChild(band);
+                
+                // Create audio filter
+                const filter = audioContext.createBiquadFilter();
+                filter.type = "peaking";
+                filter.frequency.value = freq;
+                filter.Q.value = 1;
+                filter.gain.value = 0;
+                
+                // Connect to audio graph
+                lastNode.disconnect();
+                lastNode.connect(filter);
+                
+                if (i === eqFrequencies.length - 1) {
+                    filter.connect(audioContext.destination);
+                }
+                
+                eqNodes.push({
+                    filter: filter,
+                    slider: slider
+                });
+                
+                lastNode = filter;
+                
+                // Update filter when slider moves
+                slider.addEventListener('input', () => {
+                    filter.gain.value = parseFloat(slider.value);
+                });
+            });
+        }
+        
+        eqToggle.addEventListener('click', () => {
+            if (eqContainer.style.display === 'none') {
+                if (!audioContext) {
+                    alert("Play a track first to activate EQ!");
+                    return;
+                }
+                if (eqNodes.length === 0) initEQ();
+                eqContainer.style.display = 'block';
+            } else {
+                eqContainer.style.display = 'none';
+            }
+        });
+
+        // ===== PROGRESS BAR =====
+        progressContainer.addEventListener('click', (e) => {
+            const percent = e.offsetX / progressContainer.offsetWidth;
+            audio.currentTime = percent * audio.duration;
+        });
+        
+        audio.addEventListener('timeupdate', () => {
+            const percent = (audio.currentTime / audio.duration) * 100;
+            progressBar.style.width = `${percent}%`;
+            timeDisplay.textContent = `${formatTime(audio.currentTime)} / ${formatTime(audio.duration || 0)}`;
+        });
+        
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // ===== VOLUME CONTROL =====
+        volumeSlider.addEventListener('input', (e) => {
+            audio.volume = e.target.value;
+            localStorage.setItem('reuniclus-volume', e.target.value);
+        });
+        
+        // Load saved volume
+        const savedVolume = localStorage.getItem('reuniclus-volume');
+        if (savedVolume) {
+            audio.volume = savedVolume;
+            volumeSlider.value = savedVolume;
+        }
+
+        // ===== MINI PLAYER =====
+        minimizeBtn.addEventListener('click', () => {
+            mainPlayer.style.display = 'none';
+            miniPlayer.style.display = 'flex';
+            updateMiniPlayerTitle();
+        });
+        
+        unminimizeBtn.addEventListener('click', () => {
+            miniPlayer.style.display = 'none';
+            mainPlayer.style.display = 'block';
+        });
+        
+        function updateMiniPlayerTitle() {
+            miniTitle.textContent = playlist[currentTrackIndex]?.name || "No track";
+        }
+        
+        // Sync playback controls
+        miniPlayBtn.addEventListener('click', () => {
+            audio.play();
+            isPlaying = true;
+        });
+        
+        miniPauseBtn.addEventListener('click', () => {
+            audio.pause();
+            isPlaying = false;
+        });
+        
+        // Update mini player when track changes
+        audio.addEventListener('play', updateMiniPlayerTitle);
+
+        // ===== PLAYER CONTROLS =====
+        document.getElementById('play').addEventListener('click', () => {
+            if (playlist.length === 0) return;
+            if (!audio.src) playTrack(0);
+            else audio.play();
+            isPlaying = true;
+        });
+        
+        document.getElementById('pause').addEventListener('click', () => {
+            audio.pause();
+            isPlaying = false;
+        });
+        
+        document.getElementById('stop').addEventListener('click', () => {
+            audio.pause();
+            audio.currentTime = 0;
+            isPlaying = false;
+        });
+        
+        document.getElementById('prev').addEventListener('click', () => 
+            playTrack((currentTrackIndex - 1 + playlist.length) % playlist.length));
+        
+        document.getElementById('next').addEventListener('click', () => 
+            playTrack((currentTrackIndex + 1) % playlist.length));
+
+        // ===== MOBILE SUPPORT =====
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && isPlaying) {
+                audioContext?.resume();
+            }
+        });
+        
+        // Close button
+        document.getElementById('close').addEventListener('click', () => {
+            if (confirm("Close Reuniclus?")) {
+                audio.pause();
+                if (audio.src) URL.revokeObjectURL(audio.src);
+                document.body.innerHTML = "<h1>Reuniclus Closed 🔇</h1>";
+            }
+        });
+    </script>
+</body>
+</html>
